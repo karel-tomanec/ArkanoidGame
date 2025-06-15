@@ -72,6 +72,10 @@ private:
 	SDL_Window* mWindow = nullptr;
 	int mWindowWidth = 800;
 	int mWindowHeight = 800;
+	int kMinWindowSize = 400;
+
+	// Size of the logical game area
+	Vector2 mLogicalSize{ 800.0f, 800.0f };
 
 	// Input handling
 	InputManager mInputManager;

@@ -16,11 +16,11 @@ Arkanoid::Arkanoid()
 	if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS))
 		throw std::runtime_error(std::format("SDL_Init Error: {}", SDL_GetError()));
 
-	mWindow = SDL_CreateWindow("Arkanoid", mWindowWidth, mWindowHeight, 0);
+	mWindow = SDL_CreateWindow("Arkanoid", mWindowWidth, mWindowHeight, SDL_WINDOW_RESIZABLE);
 	if (!mWindow)
 		throw std::runtime_error(std::format("SDL_CreateWindow Error: {}", SDL_GetError()));
 
-	mRenderer = std::make_unique<Renderer>(mWindow);
+	mRenderer = std::make_unique<Renderer>(mWindow, mLogicalSize, Vector2{ static_cast<float>(mWindowWidth), static_cast<float>(mWindowHeight) });
 
 	if (mRenderer)
 		mUI = std::make_unique<UI>(*mRenderer);
@@ -84,6 +84,14 @@ void Arkanoid::handleEvents()
 	{
 		if (event.type == SDL_EVENT_QUIT)
 			mIsRunning = false;
+		if (event.type == SDL_EVENT_WINDOW_RESIZED)
+		{
+			int targetSize = std::max(std::min(event.window.data1, event.window.data2), kMinWindowSize);
+			SDL_SetWindowSize(mWindow, targetSize, targetSize);
+			mWindowWidth = targetSize;
+			mWindowHeight = targetSize;
+			mRenderer->setLogicalResolution(mLogicalSize, { static_cast<float>(mWindowWidth), static_cast<float>(mWindowHeight) });
+		}
 		mInputManager.handleEvent(event);
 	}
 
@@ -259,7 +267,7 @@ void Arkanoid::checkGameEndConditions()
 		setGameState(GameState::Won);
 		mBall.reset();
 	}
-	else if (mGameState == GameState::Running && mBall->getPosition().y > static_cast<float>(mWindowHeight))
+	else if (mGameState == GameState::Running && mBall->getPosition().y > mLogicalSize.y)
 	{
 		mLifeCount--;
 		mBall.reset();
@@ -329,9 +337,9 @@ void Arkanoid::restartGame()
 void Arkanoid::createWalls()
 {
 	mWalls.reserve(kWallCount);
-	mWalls.emplace_back(Vector2{ 5.f, static_cast<float>(mWindowHeight) * 0.5f }, Vector2{ 10.f, static_cast<float>(mWindowHeight) }, Color::Gray); // Left wall
-	mWalls.emplace_back(Vector2{ static_cast<float>(mWindowWidth) * 0.5f, 5.f }, Vector2{ static_cast<float>(mWindowWidth), 10.f }, Color::Gray); // Top wall
-	mWalls.emplace_back(Vector2{ static_cast<float>(mWindowWidth) - 5.f, static_cast<float>(mWindowHeight) * 0.5f }, Vector2{ 10.f, static_cast<float>(mWindowHeight) }, Color::Gray); // Right wall
+	mWalls.emplace_back(Vector2{ 5.f, mLogicalSize.y * 0.5f }, Vector2{ 10.f, mLogicalSize.y }, Color::Gray); // Left wall
+	mWalls.emplace_back(Vector2{ mLogicalSize.x * 0.5f, 5.f }, Vector2{ mLogicalSize.x, 10.f }, Color::Gray); // Top wall
+	mWalls.emplace_back(Vector2{ mLogicalSize.x - 5.f, mLogicalSize.y * 0.5f }, Vector2{ 10.f, mLogicalSize.y }, Color::Gray); // Right wall
 
 	for (uint32_t i = 0; i < mWalls.size(); i++)
 		mCollisionContext.walls[i] = &mWalls[i];

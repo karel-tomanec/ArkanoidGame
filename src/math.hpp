@@ -61,6 +61,11 @@ constexpr Vector2 operator*(float s, const Vector2& v)
 	return v * s;
 }
 
+constexpr Vector2 operator*(const Vector2& a, const Vector2& b)
+{
+	return { a.x * b.x, a.y * b.y };
+}
+
 constexpr Vector2 operator/(const Vector2& v, float s)
 {
 	return { v.x / s, v.y / s };

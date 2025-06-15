@@ -1,9 +1,8 @@
 #include "renderer.hpp"
 
-#include <iostream>
 #include <filesystem>
 
-Renderer::Renderer(SDL_Window* window)
+Renderer::Renderer(SDL_Window* window, const Vector2& logicalSize, const Vector2& screenSize)
 {
 	if (!TTF_Init())
 	{
@@ -16,11 +15,9 @@ Renderer::Renderer(SDL_Window* window)
 		throw std::runtime_error(std::format("SDL_CreateRenderer Error: {}", SDL_GetError()));
 	}
 
-	mFont = TTF_OpenFont("assets/fonts/slkscr.ttf", 24);
-	if (!mFont)
-	{
-		throw std::runtime_error("Failed to load font.");
-	}
+	loadFont();
+
+	setLogicalResolution(logicalSize, screenSize);
 }
 
 Renderer::~Renderer()
@@ -60,17 +57,18 @@ void Renderer::drawFilledCircle(const Vector2& position, float radius, const SDL
 	const SDL_FColor fColor = toFColor(color);
 
 	// Center vertex
-	vertices[0].position = { .x = position.x, .y = position.y };
+	auto pos = toScreen(position);
+	vertices[0].position = { .x = pos.x, .y = pos.y };
 	vertices[0].color = fColor;
 
 	// Outer vertices
 	for (int i = 0; i < segments; ++i)
 	{
 		float angle = 2.0f * pi * static_cast<float>(i) / static_cast<float>(segments);
-		float x = std::cos(angle) * radius;
-		float y = std::sin(angle) * radius;
+		float x = std::cos(angle) * radius * mScale.x;
+		float y = std::sin(angle) * radius * mScale.y;
 
-		vertices[i + 1].position = { .x = position.x + x, .y = position.y + y };
+		vertices[i + 1].position = { .x = pos.x + x, .y = pos.y + y };
 		vertices[i + 1].color = fColor;
 	}
 
@@ -88,14 +86,20 @@ void Renderer::drawFilledCircle(const Vector2& position, float radius, const SDL
 void Renderer::drawRectangle(const Vector2& position, const Vector2& size, const SDL_Color& color) const
 {
 	setDrawColor(color);
-	SDL_FRect rect{ position.x - size.x * 0.5f, position.y - size.y * 0.5f, size.x, size.y };
+	Vector2 screenPos = toScreen(position);
+	Vector2 screenSize = size * mScale;
+
+	SDL_FRect rect{ screenPos.x - screenSize.x * 0.5f, screenPos.y - screenSize.y * 0.5f, screenSize.x, screenSize.y };
 	SDL_RenderRect(mRenderer, &rect);
 }
 
 void Renderer::drawFilledRectangle(const Vector2& position, const Vector2& size, const SDL_Color& color) const
 {
 	setDrawColor(color);
-	SDL_FRect rect{ position.x - size.x * 0.5f, position.y - size.y * 0.5f, size.x, size.y };
+	Vector2 screenPos = toScreen(position);
+	Vector2 screenSize = size * mScale;
+
+	SDL_FRect rect{ screenPos.x - screenSize.x * 0.5f, screenPos.y - screenSize.y * 0.5f, screenSize.x, screenSize.y };
 	SDL_RenderFillRect(mRenderer, &rect);
 }
 
@@ -127,8 +131,8 @@ void Renderer::drawText(const std::string& text, const Vector2& position, const 
 
 	float w, h;
 	SDL_GetTextureSize(texture, &w, &h);
-
-	SDL_FRect dst = { position.x, position.y, w, h };
+	Vector2 screenPos = toScreen(position);
+	SDL_FRect dst = { screenPos.x, screenPos.y, w, h };
 
 	// Adjust based on alignment
 	switch (align)
@@ -169,4 +173,43 @@ void Renderer::drawText(const std::string& text, const Vector2& position, const 
 	SDL_DestroyTexture(texture);
 }
 
+void Renderer::loadFont()
+{
+	mFont = TTF_OpenFont("assets/fonts/slkscr.ttf", mCurrentFontSize);
+	if (!mFont)
+	{
+		throw std::runtime_error("Failed to load font.");
+	}
+}
 
+void Renderer::setLogicalResolution(const Vector2& logicalSize, const Vector2& screenSize)
+{
+	mLogicalSize = logicalSize;
+	mScreenSize = screenSize;
+	mScale.x = screenSize.x / logicalSize.x;
+	mScale.y = screenSize.y / logicalSize.y;
+
+	// Compute desired font size (rounded)
+	float newFontSize = std::round(mBaseFontSize * mScale.y);
+
+	// Reload font if size changed
+	if (newFontSize != mCurrentFontSize)
+	{
+		mCurrentFontSize = newFontSize;
+
+		if (mFont)
+		{
+			TTF_CloseFont(mFont);
+			mFont = nullptr;
+		}
+		loadFont();
+	}
+}
+
+Vector2 Renderer::toScreen(const Vector2& logical) const
+{
+	return {
+		logical.x * mScale.x,
+		logical.y * mScale.y
+	};
+}
