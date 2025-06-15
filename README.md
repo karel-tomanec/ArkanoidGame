@@ -2,6 +2,10 @@
 
 A simple Arkanoid-style game built with **C++**, **SDL3**, and **CMake**.
 
+<p align="center">
+  <img src="media/gameplay.gif" alt="Gameplay Preview" width="480"/>
+</p>
+
 ## 🚀 Features
 
 - 2D Arkanoid-style gameplay with block destruction
